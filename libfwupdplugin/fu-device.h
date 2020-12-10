@@ -337,6 +337,12 @@ gboolean	 fu_device_retry			(FuDevice	*self,
 							 guint		 count,
 							 gpointer	 user_data,
 							 GError		**error);
+gboolean	 fu_device_retry_full			(FuDevice	*self,
+							 FuDeviceRetryFunc func,
+							 guint		 count,
+							 guint		 delay,
+							 gpointer	 user_data,
+							 GError		**error);
 gboolean	 fu_device_bind_driver			(FuDevice	*self,
 							 const gchar	*subsystem,
 							 const gchar	*driver,
