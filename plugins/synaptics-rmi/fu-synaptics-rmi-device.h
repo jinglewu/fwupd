@@ -27,6 +27,10 @@ struct _FuSynapticsRmiDeviceClass
 								 guint16		 addr,
 								 gsize			 req_sz,
 								 GError			**error);
+	GByteArray		*(*read_packet_register)			(FuSynapticsRmiDevice	*self,
+								 guint16		 addr,
+								 gsize			 req_sz,
+								 GError			**error);
 	gboolean		 (*wait_for_attr)		(FuSynapticsRmiDevice	*self,
 								 guint8			 source_mask,
 								 guint			 timeout_ms,
@@ -85,6 +89,10 @@ gboolean		 fu_synaptics_rmi_device_write_bootloader_id	(FuSynapticsRmiDevice	*se
 gboolean		 fu_synaptics_rmi_device_disable_irqs	(FuSynapticsRmiDevice	*self,
 								 GError			**error);
 GByteArray		*fu_synaptics_rmi_device_read		(FuSynapticsRmiDevice	*self,
+								 guint16		 addr,
+								 gsize			 req_sz,
+								 GError			**error);
+GByteArray		*fu_synaptics_rmi_device_read_packet_register		(FuSynapticsRmiDevice	*self,
 								 guint16		 addr,
 								 gsize			 req_sz,
 								 GError			**error);

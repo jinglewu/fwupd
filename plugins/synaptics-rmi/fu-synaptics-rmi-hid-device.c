@@ -152,6 +152,15 @@ fu_synaptics_rmi_hid_device_read (FuSynapticsRmiDevice *rmi_device,
 	return g_steal_pointer (&buf);
 }
 
+static GByteArray *
+fu_synaptics_rmi_hid_device_read_packet_register (FuSynapticsRmiDevice *rmi_device,
+				  guint16 addr,
+				  gsize req_sz,
+				  GError **error)
+{
+	return fu_synaptics_rmi_hid_device_read (rmi_device, addr, req_sz, error);
+}
+
 static gboolean
 fu_synaptics_rmi_hid_device_write (FuSynapticsRmiDevice *rmi_device,
 				   guint16 addr,
@@ -571,4 +580,5 @@ fu_synaptics_rmi_hid_device_class_init (FuSynapticsRmiHidDeviceClass *klass)
 	klass_rmi->wait_for_attr = fu_synaptics_rmi_hid_device_wait_for_attr;
 	klass_rmi->set_page = fu_synaptics_rmi_hid_device_set_page;
 	klass_rmi->query_status = fu_synaptics_rmi_hid_device_query_status;
+	klass_rmi->read_packet_register = fu_synaptics_rmi_hid_device_read_packet_register;
 }

@@ -15,3 +15,4 @@ FuFirmware	*fu_synaptics_rmi_firmware_new			(void);
 GBytes		*fu_synaptics_rmi_firmware_generate_v0x		(void);
 GBytes		*fu_synaptics_rmi_firmware_generate_v10		(void);
 guint32		 fu_synaptics_rmi_firmware_get_signature_size	(FuSynapticsRmiFirmware	*self);
+guint32      fu_synaptics_rmi_firmware_get_firmware_size (FuSynapticsRmiFirmware *self);

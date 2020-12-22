@@ -12,7 +12,7 @@
 #include "fu-common.h"
 #include "fu-synaptics-rmi-device.h"
 #include "fu-synaptics-rmi-v5-device.h"
-
+#include "fu-synaptics-rmi-firmware.h"
 #include "fwupd-error.h"
 
 #define RMI_F34_BLOCK_SIZE_OFFSET			1
@@ -79,6 +79,117 @@ fu_synaptics_rmi_v5_device_write_block (FuSynapticsRmiDevice *self,
 	return TRUE;
 }
 
+gboolean 
+fu_synaptics_rmi_v5_device_secure_check (FuDevice *device,
+					   FuFirmware *firmware,
+					   GError **error)
+{
+//	int rc;
+	FuSynapticsRmiFirmware *rmi_firmware = FU_SYNAPTICS_RMI_FIRMWARE (firmware);
+	FuSynapticsRmiDevice *self = FU_SYNAPTICS_RMI_DEVICE (device);
+//	FuSynapticsRmiFlash *flash = fu_synaptics_rmi_device_get_flash (self);
+	FuSynapticsRmiFunction *f34;
+	g_autoptr(GBytes) bytes_bin = NULL;
+	g_autoptr(GBytes) signature = NULL;
+	GByteArray *rsadump = g_byte_array_new ();
+	g_autoptr(GByteArray) rsaseg = NULL;
+	gsize sz;
+	const guint8 *data;
+	guint16 RSAPublicKeyLength = fu_synaptics_rmi_device_get_rsa_keylen (self) / 8;
+	guint16 RSAKeyBlockCount = RSAPublicKeyLength / 3;
+	guint16 RSAKeyBlockRemain = RSAPublicKeyLength % 3;
+	guint32 signatureLength = fu_synaptics_rmi_firmware_get_signature_size (rmi_firmware);
+	guint32 fimrwareLength = fu_synaptics_rmi_firmware_get_firmware_size (rmi_firmware) - signatureLength;
+		
+	bytes_bin = fu_firmware_get_image_by_id_bytes (firmware, "ui", error);
+	if (bytes_bin == NULL)
+		return FALSE;
+
+	signature = g_bytes_new_from_bytes (bytes_bin, fimrwareLength, signatureLength);
+	
+	data = g_bytes_get_data (signature, &sz);
+
+	if (!fu_synaptics_rmi_device_enter_backdoor (self, error)) {
+		g_prefix_error (error, "failed to enable backdoor: ");
+		return FALSE;
+	}
+
+	fu_common_dump_full (G_LOG_DOMAIN, "Signauture",
+				     data, sz,
+				     16, FU_DUMP_FLAGS_NONE);
+
+	f34 = fu_synaptics_rmi_device_get_function (self, 0x34, error);
+	if (f34 == NULL)
+		return FALSE;
+
+	g_debug ("Start to parsing RSA public key");
+	if (RSAKeyBlockRemain)
+		RSAKeyBlockCount += 1;
+	for(guint16 blockNum = 0 ; blockNum < RSAKeyBlockCount ; blockNum++){
+		g_autoptr(GByteArray) rsa_publickey_seg;
+		rsa_publickey_seg = fu_synaptics_rmi_device_read_packet_register (self,
+										f34->query_base + 14, // addr of flash properties + 5
+										0x3,
+										error);
+		if (RSAKeyBlockRemain && ((blockNum + 1) == RSAKeyBlockCount)) {
+			rsa_publickey_seg = g_byte_array_remove_range (rsa_publickey_seg, 
+										RSAKeyBlockRemain , 
+										rsa_publickey_seg->len - RSAKeyBlockRemain);
+		}
+		for (guint i = 0 ; i < rsa_publickey_seg->len / 2 ; i++) {
+			guint8 tmp = rsa_publickey_seg->data[i];
+			rsa_publickey_seg->data[i] = rsa_publickey_seg->data[rsa_publickey_seg->len - i - 1];
+			rsa_publickey_seg->data[rsa_publickey_seg->len - i - 1] = tmp;
+		}
+		if (RSAKeyBlockRemain && ((blockNum + 1) == RSAKeyBlockCount)) {
+			g_byte_array_prepend (rsadump, rsa_publickey_seg->data, RSAKeyBlockRemain);
+		} else {
+			g_byte_array_prepend (rsadump, rsa_publickey_seg->data, rsa_publickey_seg->len);
+		}
+	}
+
+	fu_common_dump_full (G_LOG_DOMAIN, "RSA public key",
+				     rsadump->data, rsadump->len,
+				     16, FU_DUMP_FLAGS_NONE);
+	
+
+/*	
+ 	BIGNUM * modul = BN_new();
+	BIGNUM * expon = BN_new();
+	BN_bin2bn(RSAPublicKey, bytesRSAPublicKeyLength, modul);
+    BN_hex2bn(&expon, "010001");
+
+	RSA_set0_key(public_key, modul, expon, NULL);
+
+	fprintf(stdout, "Going to RSA_verify\n");
+	if(public_key && ucSignature && digest){
+		verified = RSA_verify(NID_sha256, digest, SHA256_DIGEST_LENGTH,
+        	ucSignature, signatureLength, public_key);
+    	fprintf(stdout, "Verified result : %d\n", verified);
+		if(!verified){
+			g_prefix_error (error, "RSA verification failed: ");
+			return FALSE;
+		}
+	} else {
+		if(!public_key){
+			g_prefix_error (error, "public_key NULL: ");
+			return FALSE;
+		}
+		if(!ucSignature){
+			g_prefix_error (error, "ucSignature NULL: ");
+			return FALSE;
+		}
+		if(!digest){
+			g_prefix_error (error, "digest NULL: ");
+			return FALSE;
+		}
+	}
+	
+	if(public_key)
+    	RSA_free(public_key);*/
+	return TRUE;
+}
+
 gboolean
 fu_synaptics_rmi_v5_device_write_firmware (FuDevice *device,
 					   FuFirmware *firmware,
@@ -88,12 +199,17 @@ fu_synaptics_rmi_v5_device_write_firmware (FuDevice *device,
 	FuSynapticsRmiDevice *self = FU_SYNAPTICS_RMI_DEVICE (device);
 	FuSynapticsRmiFlash *flash = fu_synaptics_rmi_device_get_flash (self);
 	FuSynapticsRmiFunction *f34;
+	FuSynapticsRmiFirmware *rmi_firmware = FU_SYNAPTICS_RMI_FIRMWARE (firmware);
 	guint32 address;
 	g_autoptr(GBytes) bytes_bin = NULL;
 	g_autoptr(GBytes) bytes_cfg = NULL;
 	g_autoptr(GPtrArray) chunks_bin = NULL;
 	g_autoptr(GPtrArray) chunks_cfg = NULL;
 	g_autoptr(GByteArray) req_addr = g_byte_array_new ();
+	gboolean isFirmwareSecure = (fu_synaptics_rmi_firmware_get_signature_size (rmi_firmware) != 0) ?
+								TRUE : FALSE;
+	gboolean isDeviceSecure = (fu_synaptics_rmi_device_get_rsa_keylen (self) != 0) ?
+								TRUE : FALSE;
 
 	g_debug ("v5 write firmware");
 
@@ -119,6 +235,18 @@ fu_synaptics_rmi_v5_device_write_firmware (FuDevice *device,
 		return FALSE;
 	}
 
+	if (!isFirmwareSecure && isDeviceSecure) {
+		g_prefix_error (error, "firmware not secure: ");
+		return FALSE;
+	}
+	if (isFirmwareSecure && !isDeviceSecure) {
+		g_prefix_error (error, "device not secure: ");
+		return FALSE;
+	}
+	g_debug ("all secure");
+
+
+
 	/* f34 */
 	f34 = fu_synaptics_rmi_device_get_function (self, 0x34, error);
 	if (f34 == NULL)
@@ -131,6 +259,13 @@ fu_synaptics_rmi_v5_device_write_firmware (FuDevice *device,
 	bytes_cfg = fu_firmware_get_image_by_id_bytes (firmware, "config", error);
 	if (bytes_cfg == NULL)
 		return FALSE;
+
+	if (!fu_synaptics_rmi_v5_device_secure_check (device, firmware, error)) {
+		g_prefix_error (error, "secure check failed: ");
+		return FALSE;
+	}
+
+	g_debug ("pass secure check");
 
 	/* Currently for implementation breakpoint*/
 	fu_device_sleep_with_progress (device, 5);

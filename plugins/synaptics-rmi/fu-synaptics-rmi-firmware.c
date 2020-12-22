@@ -25,6 +25,7 @@ struct _FuSynapticsRmiFirmware {
 	gchar			*product_id;
 	guint8			 hasBlv5Signature;
 	guint32			 blv5SignatureSize;
+	guint32			 firmware_size;
 };
 
 G_DEFINE_TYPE (FuSynapticsRmiFirmware, fu_synaptics_rmi_firmware, FU_TYPE_FIRMWARE)
@@ -374,6 +375,8 @@ fu_synaptics_rmi_firmware_parse (FuFirmware *firmware,
 	}
 	self->product_id = g_strndup ((const gchar *) data + RMI_IMG_PRODUCT_ID_OFFSET, RMI_PRODUCT_ID_LENGTH);
 	self->product_info = fu_common_read_uint16 (data + RMI_IMG_PRODUCT_INFO_OFFSET, G_LITTLE_ENDIAN);
+	self->firmware_size = fu_common_read_uint32 (data + RMI_IMG_IMAGE_SIZE_OFFSET, G_LITTLE_ENDIAN);
+	g_debug ("get firmware size : %d", self->firmware_size);
 
 	/* parse partitions, but ignore lockdown */
 	switch (self->bootloader_version) {
@@ -416,6 +419,13 @@ guint32
 fu_synaptics_rmi_firmware_get_signature_size (FuSynapticsRmiFirmware *self)
 {
 	return self->blv5SignatureSize;
+}
+
+
+guint32
+fu_synaptics_rmi_firmware_get_firmware_size (FuSynapticsRmiFirmware *self)
+{
+	return self->firmware_size;
 }
 
 GBytes *

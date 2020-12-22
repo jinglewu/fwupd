@@ -26,3 +26,6 @@ gboolean	 fu_synaptics_rmi_v5_device_setup		(FuSynapticsRmiDevice	*self,
 								 GError			**error);
 gboolean	 fu_synaptics_rmi_v5_device_query_status	(FuSynapticsRmiDevice	*self,
 								 GError			**error);
+gboolean 	 fu_synaptics_rmi_v5_device_secure_check (FuDevice *device,
+					   			 FuFirmware *firmware,
+					   			 GError **error);

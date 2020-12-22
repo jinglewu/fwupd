@@ -146,6 +146,16 @@ fu_synaptics_rmi_device_read (FuSynapticsRmiDevice *self,
 	return klass_rmi->read (self, addr, req_sz, error);
 }
 
+GByteArray *
+fu_synaptics_rmi_device_read_packet_register (FuSynapticsRmiDevice *self,
+			      guint16 addr,
+			      gsize req_sz,
+			      GError **error)
+{
+	FuSynapticsRmiDeviceClass *klass_rmi = FU_SYNAPTICS_RMI_DEVICE_GET_CLASS (self);
+	return klass_rmi->read_packet_register (self, addr, req_sz, error);
+}
+
 gboolean
 fu_synaptics_rmi_device_write (FuSynapticsRmiDevice *self,
 			       guint16 addr,

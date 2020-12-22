@@ -558,6 +558,43 @@ fu_synaptics_rmi_ps2_device_read (FuSynapticsRmiDevice *rmi_device,
 	return g_steal_pointer (&buf);
 }
 
+static GByteArray *
+fu_synaptics_rmi_ps2_device_read_packet_register (FuSynapticsRmiDevice *rmi_device,
+				  guint16 addr,
+				  gsize req_sz,
+				  GError **error)
+{
+	FuSynapticsRmiPs2Device *self = FU_SYNAPTICS_RMI_PS2_DEVICE (rmi_device);
+	g_autoptr(GByteArray) buf = NULL;
+	g_autofree gchar *dump = NULL;
+
+	if (!fu_synaptics_rmi_device_set_page (rmi_device,
+					       addr >> 8,
+					       error)) {
+		g_prefix_error (error, "failed to set RMI page:");
+		return FALSE;
+	}
+
+	buf = fu_synaptics_rmi_ps2_device_read_rmi_packet_register (self,
+									    addr,
+									    req_sz,
+									    error);
+	if (buf == NULL) {
+		g_prefix_error (error,
+				"failed packet register read %x: ",
+				addr);
+		return FALSE;
+	}
+
+	dump = g_strdup_printf ("R %x", addr);
+	if (g_getenv ("FWUPD_SYNAPTICS_RMI_VERBOSE") != NULL) {
+		fu_common_dump_full (G_LOG_DOMAIN, dump,
+				     buf->data, buf->len,
+				     80, FU_DUMP_FLAGS_NONE);
+	}
+	return g_steal_pointer (&buf);
+}
+
 static gboolean
 fu_synaptics_rmi_ps2_device_write (FuSynapticsRmiDevice *rmi_device,
 				   guint16 addr,
@@ -937,4 +974,5 @@ fu_synaptics_rmi_ps2_device_class_init (FuSynapticsRmiPs2DeviceClass *klass)
 	klass_rmi->wait_for_attr = fu_synaptics_rmi_ps2_device_wait_for_attr;
 	klass_rmi->enter_backdoor = fu_synaptics_rmi_ps2_device_enter_backdoor;
 	klass_rmi->write_bus_select = fu_synaptics_rmi_ps2_device_write_bus_select;
+	klass_rmi->read_packet_register = fu_synaptics_rmi_ps2_device_read_packet_register;
 }
