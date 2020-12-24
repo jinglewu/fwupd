@@ -209,6 +209,7 @@ libjcat = dependency('jcat', version : '>= 0.1.0', fallback : ['libjcat', 'libjc
 libjsonglib = dependency('json-glib-1.0', version : '>= 1.1.1')
 valgrind = dependency('valgrind', required: false)
 libcurl = dependency('libcurl', version : '>= 7.62.0')
+libgnutls = dependency('gnutls', version : '>= 3.6.0')
 if build_daemon
   if get_option('polkit')
     polkit = dependency('polkit-gobject-1', version : '>= 0.103')
@@ -456,6 +457,7 @@ if build_standalone
   plugin_deps += libarchive
   plugin_deps += gudev
   plugin_deps += libjsonglib
+  plugin_deps += libgnutls
 endif
 
 root_incdir = include_directories('.')

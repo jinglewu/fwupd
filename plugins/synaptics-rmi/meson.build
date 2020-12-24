@@ -51,6 +51,7 @@ if get_option('tests')
     dependencies : [
       gio,
       libxmlb,
+      libgnutls,
     ],
     link_with : [
       fwupd,
