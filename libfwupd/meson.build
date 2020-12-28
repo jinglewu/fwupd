@@ -29,10 +29,13 @@ install_headers([
 libfwupd_deps = [
     giounix,
     gmodule,
-    libcurl,
     libjcat,
     libjsonglib,
 ]
+
+if get_option('curl')
+  libfwupd_deps += libcurl
+endif
 
 libfwupd_src = [
   'fwupd-client.c',
@@ -125,8 +128,7 @@ if get_option('introspection')
     export_packages : 'fwupd',
     header : 'fwupd.h',
     dependencies : [
-      giounix,
-      libcurl,
+      libfwupd_deps,
     ],
     includes : [
       'Gio-2.0',
@@ -180,9 +182,7 @@ if get_option('tests')
       root_incdir,
     ],
     dependencies : [
-      gio,
-      libcurl,
-      libjsonglib,
+      libfwupd_deps,
     ],
     link_with : fwupd,
     c_args : [
